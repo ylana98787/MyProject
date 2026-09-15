@@ -35,6 +35,7 @@ else
     // Табличний режим
     Console.WriteLine("=".PadRight(60, '='));
     Console.WriteLine("MyProject - Наскрізний проєкт з крос-платформного програмування");
+     Console.WriteLine("Студент: Новосельська Уляна Василівна, група ФЕІ-35");
     Console.WriteLine("=".PadRight(60, '='));
     Console.WriteLine();
 
