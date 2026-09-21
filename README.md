@@ -14,20 +14,7 @@
 
 Призначення: облік видач примірників книг читачам та їх повернень.
 
-## Запуск
-
-```bash
-dotnet build
-dotnet run --project src/Cli
-```
-
-## Середовище
-
-- .NET SDK 10.0
-- Windows 11 x64
-- RID: win-x64
-
-## Структура проєкту
+## Структура проєкту (після lab02)
 
 ```
 MyProject/
@@ -36,33 +23,45 @@ MyProject/
 ├── MyProject.slnx
 ├── README.md
 └── src/
+    ├── Core/
+    │   ├── Core.csproj
+    │   └── EnvironmentInfo.cs
     └── Cli/
-        ├── Cli.csproj
+        ├── CLI.csproj
         └── Program.cs
 ```
 
-## Додаткове завдання
+Залежність одностороння: **Cli → Core**.
 
-Підтримка аргументу командного рядка `--json`:
+## Команди
+
+```bash
+dotnet build
+dotnet run --project src/Cli
+dotnet publish src/Cli -c Release -r win-x64 --self-contained true
+dotnet publish src/Cli -c Release -r win-x64 --self-contained false
+./src/Cli/bin/Release/net10.0/win-x64/publish/CLI.exe
+```
+
+## Порівняння режимів публікації
+
+| RID | Режим | Розмір | Потрібен runtime |
+|-----|-------|--------|------------------|
+| win-x64 | self-contained | ~78 MB | Ні |
+| win-x64 | framework-dependent | ~229 KB | Так (.NET 10) |
+
+## Multi-targeting Core
+
+`Core.csproj` використовує `<TargetFrameworks>net8.0;net10.0</TargetFrameworks>`.
+
+## Архітектура Core
+
+- `EnvironmentReport` — record для даних.
+- `EnvironmentInfo` — static class для поведінки.
+- `DetectRid()` — вручну збирає RID.
+
+## Додаткове завдання
 
 ```bash
 dotnet run --project src/Cli -- --json
-```
-
-## Self-contained публікації
-
-| RID | Розмір |
-|-----|--------|
-| `win-x64` | 78 MB |
-| `linux-x64` | 80 MB |
-
-```bash
-dotnet publish src/Cli -c Release -r win-x64 --self-contained true
-dotnet publish src/Cli -c Release -r linux-x64 --self-contained true
-```
-
-Запуск бінарника без `dotnet run` (Windows):
-
-```bash
-./src/Cli/bin/Release/net10.0/win-x64/publish/Cli.exe
 ```
