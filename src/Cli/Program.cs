@@ -19,6 +19,7 @@ Console.WriteLine($"{"Архітектура",-30}: {report.ProcessArchitecture}
 Console.WriteLine($"{"RID (визначено вручну)",-30}: {report.DetectedRid}");
 Console.WriteLine($"{"RID (від .NET)",-30}: {report.ReportedRid}");
 Console.WriteLine($"{"Каталог застосунку",-30}: {report.BaseDirectory}");
+Console.WriteLine($"{"Build",-30}: {report.BuildNote}");
 
 Console.WriteLine();
 Console.WriteLine("=".PadRight(60, '='));

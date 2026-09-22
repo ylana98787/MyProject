@@ -2,16 +2,24 @@ using System.Runtime.InteropServices;
 
 namespace Core;
 
-// Record — незмінний тип для зберігання даних
 public sealed record EnvironmentReport(
     string OsDescription,
     string FrameworkDescription,
     string ProcessArchitecture,
     string DetectedRid,
     string ReportedRid,
-    string BaseDirectory);
+    string BaseDirectory,
+    string BuildNote);
 
-// Клас — для поведінки (збір даних)
+public static class BuildInfo
+{
+#if NET10_0_OR_GREATER
+    public const string BuildNote = "збірка під net10.0";
+#else
+    public const string BuildNote = "збірка під net8.0";
+#endif
+}
+
 public static class EnvironmentInfo
 {
     public static EnvironmentReport Collect() => new(
@@ -20,9 +28,9 @@ public static class EnvironmentInfo
         RuntimeInformation.ProcessArchitecture.ToString(),
         DetectRid(),
         RuntimeInformation.RuntimeIdentifier,
-        AppContext.BaseDirectory);
+        AppContext.BaseDirectory,
+        BuildInfo.BuildNote);
 
-    // Ручне визначення RID: показує, з чого складається рядок win-x64
     private static string DetectRid()
     {
         string os = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "win" :
