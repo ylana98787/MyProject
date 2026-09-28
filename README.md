@@ -45,10 +45,20 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 
 ## Порівняння режимів публікації
 
-| RID | Режим | Розмір | Потрібен runtime |
-|-----|-------|--------|------------------|
-| win-x64 | self-contained | ~78 MB | Ні |
-| win-x64 | framework-dependent | ~229 KB | Так (.NET 10) |
+| RID | Режим | Розмір publish | Файлів | Потрібен runtime |
+|-----|-------|----------------|--------|------------------|
+| win-x64 | self-contained | 78 MB | ~200 | Ні |
+| win-x64 | framework-dependent | 229 KB | ~200 | Так (.NET 10) |
+| win-x64 | self-contained + SingleFile | 71 MB | 3 | Ні |
+| win-x64 | self-contained + Trimmed | 20 MB | 31 | Ні |
+
+**Self-contained** містить копію .NET runtime — застосунок працює без встановленого .NET, але займає багато місця.
+
+**Framework-dependent** містить лише код і залежності — каталог малий, але на машині користувача має бути встановлений .NET 10.
+
+**SingleFile** об'єднує всі `.dll` в один `.exe` — зручно копіювати, але перший запуск повільніший.
+
+**Trimmed** видаляє невикористаний код — розмір менший у 4 рази, але небезпечний для коду з рефлексією.
 
 ## Multi-targeting Core
 
