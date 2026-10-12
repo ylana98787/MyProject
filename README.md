@@ -75,3 +75,75 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 ```bash
 dotnet run --project src/Cli -- --json
 ```
+## Доменна модель (lab04)
+
+### Сутності
+
+**BookCopy** (примірник книги) — головна сутність зі станом IsIssued:
+
+    public sealed class BookCopy
+    {
+        private bool _isIssued;
+        public string Id { get; }
+        public string Isbn { get; }
+        public string Title { get; }
+        public int Year { get; }
+        public bool IsIssued => _isIssued;
+        
+        private BookCopy(...) { ... }              // приватний конструктор
+        public static BookCopy Create(...) { }      // фабричний метод
+        public void Issue() { ... }                 // видати
+        public void Return() { ... }                // повернути
+        public BookDto ToDto() => ...;
+        public static BookCopy FromDto(BookDto dto) => ...;
+    }
+
+**Loan** (видача) — сутність з датами і станом IsClosed:
+
+    public sealed class Loan
+    {
+        private DateTime? _returnedOn;
+        public string Id { get; }
+        public BookCopy Copy { get; }
+        public string ReaderId { get; }
+        public DateTime IssuedOn { get; }
+        public DateTime? ReturnedOn => _returnedOn;
+        public bool IsClosed => _returnedOn.HasValue;
+        
+        private Loan(...) { ... }                      // приватний конструктор
+        public static Loan Open(...) { }                // фабричний метод
+        public void Close(DateTime returnedOn) { ... }  // закрити
+    }
+
+### Перелік інваріантів
+
+| № | Правило | Тип винятку | Де перевіряється |
+|---|---------|-------------|------------------|
+| 1 | Ідентифікатор примірника не порожній | ArgumentException | BookCopy.Create |
+| 2 | ISBN не порожній | ArgumentException | BookCopy.Create |
+| 3 | Назва не порожня | ArgumentException | BookCopy.Create |
+| 4 | Рік у межах 1450...поточний | ArgumentOutOfRangeException | BookCopy.Create |
+| 5 | Не видати вже виданий примірник | InvalidOperationException | BookCopy.Issue |
+| 6 | Не повернути невиданий примірник | InvalidOperationException | BookCopy.Return |
+| 7 | Ідентифікатор видачі не порожній | ArgumentException | Loan.Open |
+| 8 | Примірник обов'язковий | ArgumentNullException | Loan.Open |
+| 9 | Ідентифікатор читача не порожній | ArgumentException | Loan.Open |
+| 10 | Не закрити вже закриту видачу | InvalidOperationException | Loan.Close |
+| 11 | Дата повернення не раніше дати видачі | ArgumentOutOfRangeException | Loan.Close |
+
+### Принципи
+
+- **Інкапсуляція:** приватні поля (_isIssued, _returnedOn), публічні властивості лише для читання ({ get; }, => _field)
+- **Фабричний метод:** BookCopy.Create і Loan.Open — єдині точки створення; конструктор приватний
+- **Інваріанти:** перевіряються ДО зміни стану; якщо виняток — стан не змінюється
+- **Типи винятків:** ArgumentException — для вхідних аргументів, InvalidOperationException — для стану, ArgumentOutOfRangeException — для діапазонів
+- **Повідомлення:** містять ключ запису і конкретні числа, щоб зрозуміти причину без коду
+- **Мапінг:** ToDto() / FromDto() — сутність ↔ DTO; FromDto проходить ТІ САМІ перевірки, що й Create
+
+### Чим DTO відрізняється від сутності
+
+**DTO** (BookDto) — це **формат даних** для зберігання і передачі (тиждень 3): record, без поведінки, без інваріантів.
+
+**Сутність** (BookCopy) — це **модель з правилами**: class, приватні поля, методи з бізнес-назвами, інваріанти.
+
+DTO — пасивний контейнер, сутність — активна модель, яка **сама гарантує коректність** свого стану.

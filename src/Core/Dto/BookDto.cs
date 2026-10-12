@@ -4,4 +4,5 @@ public record BookDto(
     string Id,
     string Isbn,
     string Title,
-    int Year);
+    int Year,
+    bool IsIssued = false);
