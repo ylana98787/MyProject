@@ -1,5 +1,7 @@
 ﻿using System.Text;
 using Core.Domain;
+using Core.Dto;
+using Core.Import;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -61,6 +63,90 @@ Console.WriteLine($"ToDto:   {dto}");
 var restored = BookCopy.FromDto(dto);
 Console.WriteLine($"FromDto: {restored}");
 Console.WriteLine($"Стан збережено: {restored.IsIssued == original.IsIssued}");
+Console.WriteLine();
+Console.WriteLine("=== Сценарій 3: імпорт → сутності ===");
+
+// Імпортуємо CSV з тижня 3
+var importResult = BookCsvImporter.Load(Path.Combine("data", "sample.csv"));
+
+// Перетворюємо DTO → сутності (з перевіркою інваріантів)
+var domainResult = BookCopy.FromImportResult(importResult);
+
+Console.WriteLine($"Успішно створено сутностей: {domainResult.Items.Count}");
+foreach (var domainCopy in domainResult.Items.Take(5))
+{
+    Console.WriteLine($"  {domainCopy}");
+}
+
+Console.WriteLine();
+Console.WriteLine($"Помилок (парсер + інваріанти): {domainResult.Errors.Count}");
+foreach (var err in domainResult.Errors)
+{
+    Console.WriteLine($"  ! {err}");
+}
+
+// Перевірка: чи інваріанти справді захищають?
+Console.WriteLine();
+Console.WriteLine("Перевірка: створюємо BookCopy з поганого DTO");
+TryDo("рік 3000 (порушує інваріант)", () =>
+{
+    var badDto = new BookDto("BC-999", "978-966-03-9999-9", "Майбутнє", 3000);
+    BookCopy.FromDto(badDto);
+});
+Console.WriteLine();
+Console.WriteLine("=== Сценарій 4: інваріант, що охоплює дві сутності ===");
+
+var service = new LoanService();
+
+// Створюємо 5 активних видач для читача R-100
+for (int i = 1; i <= 5; i++)
+{
+    var c = BookCopy.Create($"BC-{100 + i}", $"978-966-11-000{i}-1", $"Книга {i}", 2000);
+    service.OpenLoan($"L-{200 + i}", c, "R-100", new DateTime(2026, 10, 1));
+}
+Console.WriteLine($"Створено активних видач для R-100: {service.Loans.Count}");
+
+// Спроба створити шосту видачу — має впасти
+TryDo("шостий активний Loan (перевищено ліміт)", () =>
+{
+    var extraCopy = BookCopy.Create("BC-200", "978-966-11-9999-9", "Зайва книга", 2020);
+    service.OpenLoan("L-300", extraCopy, "R-100", new DateTime(2026, 10, 1));
+});
+
+// Але для іншого читача — можна
+var otherCopy = BookCopy.Create("BC-201", "978-966-11-8888-8", "Інша книга", 2020);
+var otherLoan = service.OpenLoan("L-301", otherCopy, "R-200", new DateTime(2026, 10, 1));
+Console.WriteLine($"Для R-200 видача відкрита: {otherLoan}");
+
+Console.WriteLine();
+Console.WriteLine("=== Сценарій 5: enum-стани і переходи ===");
+
+var c1 = BookCopy.Create("BC-300", "978-966-12-0001-1", "Тестова", 2020);
+Console.WriteLine($"Початковий стан: {c1.Status}");
+
+c1.Issue();
+Console.WriteLine($"Після Issue: {c1.Status}");
+
+c1.Return();
+Console.WriteLine($"Після Return: {c1.Status}");
+
+c1.MarkDamaged();
+Console.WriteLine($"Після MarkDamaged: {c1.Status}");
+
+// Заборонені переходи
+TryDo("Lost → Issued (заборонено)", () =>
+{
+    var c = BookCopy.Create("BC-301", "978-966-12-0002-2", "Втрачена", 2020);
+    c.MarkLost();
+    c.Issue();  // ← має впасти
+});
+
+TryDo("Damaged → Issued (заборонено)", () =>
+{
+    var c = BookCopy.Create("BC-302", "978-966-12-0003-3", "Пошкоджена", 2020);
+    c.MarkDamaged();
+    c.Issue();  // ← має впасти
+});
 
 // ===== ДОПОМІЖНА ФУНКЦІЯ =====
 static void TryDo(string title, Action action)
