@@ -168,3 +168,28 @@ DTO — пасивний контейнер, сутність — активна
 - ✅ Легко змінити ліміт (`MaxActiveLoansPerReader`)
 - ✅ Легко тестувати (можна передати різні колекції)
 - ✅ Сутності залишаються простими (кожна відповідає за своє)
+
+## Сервісний шар (lab05)
+
+**Інтерфейс:** `IBookStore` — контракт сховища з методами `List`, `GetById`, `Add`, `Update`, `Remove`.
+
+**Реалізації:**
+- `InMemoryBookStore` — зберігає дані у `Dictionary` у пам'яті
+- `FileBookStore` — зберігає дані у JSON-файлі `catalog.json`
+
+**Сервіс:** `LendingService` — бізнес-операції `AddBook`, `IssueCopy`, `ReturnCopy`, `All`, `Find`.
+
+**Схема залежностей:**
+Cli → LendingService → IBookStore → InMemory | File
+
+**Composition Root (у `Program.cs`):**
+
+```csharp
+IBookStore store = useFile
+    ? new FileBookStore(dataPath)
+    : new InMemoryBookStore(SampleData.Books());
+
+var service = new LendingService(store);
+```
+
+Що зміниться на тижні 11 (БД): достатньо створити EfBookStore : IBookStore і змінити один рядок у Program.cs для вибору реалізації. LendingService при цьому не змінюється, оскільки залежить від інтерфейсу, а не від конкретного класу.

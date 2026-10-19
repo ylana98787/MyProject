@@ -10,7 +10,7 @@ public sealed class BookCopy
     public string Isbn { get; }
     public string Title { get; }
     public int Year { get; }
-    public CopyStatus Status => _status;
+    public CopyStatus Status => _status;//це властивість-вираз, яка читає приватне поле.
     public bool IsIssued => _status == CopyStatus.Issued;
 
     // Приватний конструктор
@@ -28,43 +28,46 @@ public sealed class BookCopy
     {
         if (string.IsNullOrWhiteSpace(id))
             throw new ArgumentException("Ідентифікатор примірника обов'язковий", nameof(id));
-
+//Повертає ім'я змінної id як рядок: "id". При перейменуванні змінної компілятор оновить це автоматично
         if (string.IsNullOrWhiteSpace(isbn))
             throw new ArgumentException("ISBN не може бути порожнім", nameof(isbn));
 
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Назва не може бути порожньою", nameof(title));
 
-        if (year < 1450 || year > DateTime.Now.Year)
-            throw new ArgumentOutOfRangeException(nameof(year), year,
+        if (year < 1450 || year > DateTime.Now.Year)//Рік більше поточного (DateTime.Now.Year — поточний рік)
+            throw new ArgumentOutOfRangeException(nameof(year), year,//Виняток: «значення поза діапазоном»
                 $"Рік {year} поза допустимими межами (1450...{DateTime.Now.Year})");
+             // 3000 некоректний сам по собі — рік не може бути в майбутньому.
 
         return new BookCopy(id.Trim(), isbn.Trim(), title.Trim(), year, CopyStatus.Available);
     }
-
+//Публічні методи (Issue, Return, MarkLost, MarkDamaged) — це бізнес-операції, які викликають ChangeStatus з потрібним станом. 
+//Ззовні ChangeStatus викликати не можна — тільки через ці методи.
     // Видати примірник
-    public void Issue() => ChangeStatus(CopyStatus.Issued);
+    public void Issue() => ChangeStatus(CopyStatus.Issued);//Видати
 
     // Повернути примірник
-    public void Return() => ChangeStatus(CopyStatus.Available);
+    public void Return() => ChangeStatus(CopyStatus.Available);//Повернути
 
     // Позначити як втрачений
-    public void MarkLost() => ChangeStatus(CopyStatus.Lost);
+    public void MarkLost() => ChangeStatus(CopyStatus.Lost);//Позначити як втрачений
 
     // Позначити як пошкоджений
-    public void MarkDamaged() => ChangeStatus(CopyStatus.Damaged);
+    public void MarkDamaged() => ChangeStatus(CopyStatus.Damaged);//Позначити як пошкоджений
 
     // Перевірка допустимих переходів через switch expression
-    private void ChangeStatus(CopyStatus newStatus)
-    {
-        bool allowed = (_status, newStatus) switch
-        {
+    private void ChangeStatus(CopyStatus newStatus)//Метод доступний тільки всередині класу BookCopy. Ззовні викликати не можна
+    {//приватний метод зміни стану
+        bool allowed = (_status, newStatus) switch//перевіряє обидва стани одночасно.
+        {//Обчислює allowed — чи дозволений перехід із _status у newStatus
+        //Дозволені переходи — 7 гілок. Усі інші — _ => false.
             // З Available можна: видати, втратити, пошкодити
             (CopyStatus.Available, CopyStatus.Issued) => true,
             (CopyStatus.Available, CopyStatus.Lost) => true,
             (CopyStatus.Available, CopyStatus.Damaged) => true,
 
-            // З Issued можна: повернути, втратити, пошкодити
+            // З Issued можна: повернути, втратити виданий, пошкодити виданий
             (CopyStatus.Issued, CopyStatus.Available) => true,
             (CopyStatus.Issued, CopyStatus.Lost) => true,
             (CopyStatus.Issued, CopyStatus.Damaged) => true,
@@ -76,17 +79,19 @@ public sealed class BookCopy
             // Усі інші переходи — заборонені
             _ => false
         };
-
         if (!allowed)
-            throw new InvalidOperationException(
+            throw new InvalidOperationException(//Тип винятку: «операція неможлива в поточному стані»
                 $"Примірник {Id}: перехід {_status} → {newStatus} заборонений");
-
-        _status = newStatus;
+//ВИНЯТОК — операція перервана, _status НЕ змінюється
+        _status = newStatus;// // ← виконується ТІЛЬКИ якщо allowed == true
     }
+    //Виняток стоїть ДО зміни стану. Якщо перехід заборонений — кидається InvalidOperationException,
+    //  і рядок _status = newStatus не виконується.
+   // У Program.cs функція TryDo ловить цей виняток через try/catch. У виводі:
 
     // Мапінг у DTO і назад
     public BookDto ToDto() => new(Id, Isbn, Title, Year, IsIssued);
-
+//ToDto — сутність → DTO. FromDto — DTO → сутність через Create.»
     public static BookCopy FromDto(BookDto dto)
     {
         var copy = Create(dto.Id, dto.Isbn, dto.Title, dto.Year);
