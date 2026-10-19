@@ -7,20 +7,17 @@ using Core.Storage;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-// === COMPOSITION ROOT: єдине місце з конкретними класами ===
-bool useFile = args.Contains("--file");
+// === COMPOSITION ROOT ===
 string dataPath = Path.Combine(AppContext.BaseDirectory, "data", "catalog.json");
 
-IBookStore store = useFile
-    ? new FileBookStore(dataPath)
-    : new InMemoryBookStore(SampleData.Books());
-
-var service = new LendingService(store);
+var cachedStore = (CachingBookStore)StoreFactory.Create(args, dataPath);
+var baseStore = cachedStore;
+var service = new LendingService(cachedStore);
 
 // === СЦЕНАРІЙ ===
 Console.WriteLine("=".PadRight(70, '='));
 Console.WriteLine("MyProject - сервісний шар");
-Console.WriteLine($"Сховище: {store.GetType().Name}");
+Console.WriteLine($"Сховище: {cachedStore.GetType().Name}");
 Console.WriteLine("=".PadRight(70, '='));
 Console.WriteLine();
 
@@ -62,7 +59,7 @@ Console.WriteLine();
 Console.WriteLine("=== Сценарій відмови ===");
 
 // Спроба створити книгу з дублем Id (через пряме додавання в store)
-TryDo("дубль Id", () => store.Add(created));
+TryDo("дубль Id", () => cachedStore.Add(created));
 
 // Спроба видати неіснуючий
 TryDo("видати неіснуючий", () => service.IssueCopy("NO-SUCH-ID"));
@@ -75,7 +72,42 @@ TryDo("видати вже виданий", () =>
 });
 
 Console.WriteLine();
+Console.WriteLine("=== Демонстрація кешу ===");
+Console.WriteLine("Викликаємо All() 3 рази поспіль:");
+
+for (int i = 1; i <= 3; i++)
+{
+    _ = cachedStore.List();
+    Console.WriteLine($"  #  {i}: hits={cachedStore.ListHits}, misses={cachedStore.ListMisses}");
+}
+
+Console.WriteLine("Після Add() кеш скидається:");
+_ = cachedStore.List();
+Console.WriteLine($"  hits={cachedStore.ListHits}, misses={cachedStore.ListMisses}");
+Console.WriteLine();
 Console.WriteLine("=".PadRight(70, '='));
+Console.WriteLine();
+Console.WriteLine("=== Пошук з Func<BookCopy, bool> ===");
+
+// Пошук 1: всі доступні
+var available = service.Search(b => b.Status == CopyStatus.Available);
+Console.WriteLine($"Доступні ({available.Count}):");
+foreach (var b in available.Take(3))
+    Console.WriteLine($"  {b.Id} — {b.Title}");
+
+// Пошук 2: книги 19 століття (1800-1899)
+var century19 = service.Search(b => b.Year >= 1800 && b.Year < 1900);
+Console.WriteLine();
+Console.WriteLine($"19 століття ({century19.Count}):");
+foreach (var b in century19)
+    Console.WriteLine($"  {b.Year} — {b.Title}");
+
+// Пошук 3: книги з "Кобзар" у назві
+var kобзар = service.Search(b => b.Title.Contains("Кобзар", StringComparison.OrdinalIgnoreCase));
+Console.WriteLine();
+Console.WriteLine($"З 'Кобзар' у назві ({kобзар.Count}):");
+foreach (var b in kобзар)
+    Console.WriteLine($"  {b.Id} — {b.Title}");
 
 // === ДОПОМІЖНА ФУНКЦІЯ ===
 static void TryDo(string title, Action action)

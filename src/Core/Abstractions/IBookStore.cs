@@ -9,4 +9,7 @@ public interface IBookStore
     void Add(BookCopy item);
     void Update(BookCopy item);
     bool Remove(string id);
+    
+    //пошук за предикатом
+    IReadOnlyList<BookCopy> Find(Func<BookCopy, bool> predicate);
 }

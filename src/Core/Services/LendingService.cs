@@ -40,4 +40,6 @@ public sealed class LendingService(IBookStore store)
     public IReadOnlyList<BookCopy> All() => _store.List();
 
     public BookCopy? Find(string id) => _store.GetById(id);
+    
+    public IReadOnlyList<BookCopy> Search(Func<BookCopy, bool> predicate) => _store.Find(predicate);
 }

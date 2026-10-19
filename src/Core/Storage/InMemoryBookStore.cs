@@ -25,6 +25,11 @@ public sealed class InMemoryBookStore(IEnumerable<BookCopy>? seed = null) : IBoo
         ArgumentNullException.ThrowIfNull(item);
         _items[item.Id] = item;
     }
+        public IReadOnlyList<BookCopy> Find(Func<BookCopy, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        return _items.Values.Where(predicate).ToList();
+    }
 
     public bool Remove(string id) => _items.Remove(id);
 }
