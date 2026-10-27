@@ -193,3 +193,20 @@ var service = new LendingService(store);
 ```
 
 Що зміниться на тижні 11 (БД): достатньо створити EfBookStore : IBookStore і змінити один рядок у Program.cs для вибору реалізації. LendingService при цьому не змінюється, оскільки залежить від інтерфейсу, а не від конкретного класу.
+## Доменні події (lab06)
+
+**Тип зміни:** `LibraryChangeKind` — `BookAdded`, `CopyIssued`, `CopyReturned`.
+**Дані події:** `LibraryChangedEventArgs` — `CopyId`, `Kind`, `ReaderId`, `DueDate`, `At`.
+
+**Сервіс:** `LendingService` має `event EventHandler<LibraryChangedEventArgs>? Changed`.
+Подія піднімається методом `OnChanged` **після успішної зміни стану**. Якщо інваріант кинув виняток — подія не виникає.
+
+**Підписники (у `Program.cs`):**
+1. Локальний метод `OnLibraryChanged` — пише в консоль і в `logs/app.log`.
+2. Лямбда `(_, _) => eventCount++` — лічильник зі замиканням.
+
+**Відписка:** після `service.Changed -= OnLibraryChanged` операції виконуються, але повідомлення не пишуться (лічильник працює).
+
+**Func:** метод `FindAll(Func<BookCopy, bool> predicate)` — пошук за предикатом.
+
+**Лог-файл:** `logs/app.log` створюється через `Directory.CreateDirectory` + `Path.Combine(AppContext.BaseDirectory, "logs", "app.log")`.

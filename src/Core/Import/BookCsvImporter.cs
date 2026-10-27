@@ -8,10 +8,10 @@ public static class BookCsvImporter
     // Роздільник — крапка з комою: не конфліктує з комою в назвах
     private const char Separator = ';';
 
-    public static ImportResult<BookDto> Load(string path)
-    {
-        var items = new List<BookDto>();
-        var errors = new List<string>();
+    public static ImportResult<BookDto> Load(string path, Action<string>? onError = null)
+{
+          var items = new List<BookDto>();
+         var errors = new List<string>();
 
         string[] lines = File.ReadAllLines(path, System.Text.Encoding.UTF8);
 
@@ -33,10 +33,13 @@ public static class BookCsvImporter
                 case ParseOk ok:
                     items.Add(ok.Value);
                     break;
-                case ParseFailed failed:
-                    errors.Add($"рядок {number}: {failed.Reason}");
-                    break;
+                   case ParseFailed failed:
+                      var errorMsg = $"рядок {number}: {failed.Reason}";
+                      errors.Add(errorMsg);
+                     onError?.Invoke(errorMsg);   // ← викликаємо делегат, якщо він переданий
+                      break;
             }
+
         }
 
         return new ImportResult<BookDto>(items, errors);
