@@ -1,0 +1,49 @@
+using Core.Domain;
+
+namespace Core.Reports;
+
+public static class ReportService
+{
+    // 1) Фільтр + сортування + проєкція
+    // Питання: "Які книги мають найменше... / старіші за N років?"
+    public static IReadOnlyList<BookReportLine> OldBooks(IEnumerable<BookCopy> source, int beforeYear)
+        => source.Where(b => b.Year < beforeYear)
+                 .OrderBy(b => b.Year).ThenBy(b => b.Id, StringComparer.Ordinal)
+                 .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
+                 .ToList();
+
+    // 2) Топ-N зі стабільним порядком
+    // Питання: "Які найстаріші N книг?"
+    public static IReadOnlyList<BookReportLine> TopOldest(IEnumerable<BookCopy> source, int n)
+        => source.OrderBy(b => b.Year).ThenBy(b => b.Id, StringComparer.Ordinal)
+                 .Take(n)
+                 .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
+                 .ToList();
+
+    // 3) Групування з підрахунком
+    // Питання: "Скільки книг у кожному статусі (Available/Issued)?"
+    public static IReadOnlyList<GroupSummary> ByStatus(IEnumerable<BookCopy> source)
+        => source.GroupBy(b => b.Status.ToString(), StringComparer.OrdinalIgnoreCase)
+                 .Select(g => new GroupSummary(g.Key, g.Count(), g.Count()))
+                 .OrderByDescending(s => s.Count)
+                 .ToList();
+
+    // 4) Агрегати з обробкою порожньої послідовності
+    // Питання: "Скільки всього книг, який середній рік видання, найстаріша?"
+    public static (int Items, double AverageYear, int OldestYear, int NewestYear) Totals(IEnumerable<BookCopy> source)
+    {
+        var list = source.ToList();
+        return list.Count == 0
+            ? (0, 0d, 0, 0)
+            : (list.Count,
+               list.Average(b => b.Year),
+               list.Min(b => b.Year),
+               list.Max(b => b.Year));
+    }
+
+    // 5) Пошук за предикатом (для FindAll/демонстрації Func)
+    public static IReadOnlyList<BookReportLine> Search(IEnumerable<BookCopy> source, Func<BookCopy, bool> predicate)
+        => source.Where(predicate)
+                 .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
+                 .ToList();
+}

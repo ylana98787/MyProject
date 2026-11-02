@@ -210,3 +210,21 @@ var service = new LendingService(store);
 **Func:** метод `FindAll(Func<BookCopy, bool> predicate)` — пошук за предикатом.
 
 **Лог-файл:** `logs/app.log` створюється через `Directory.CreateDirectory` + `Path.Combine(AppContext.BaseDirectory, "logs", "app.log")`.
+
+## Звіти через LINQ (lab07)
+
+### Сервіс звітів
+
+У `src/Core/Reports/`:
+- `BookReportLine` — record-DTO рядка звіту (Id, Title, Isbn, Year, Status)
+- `GroupSummary` — record-DTO групи (Key, Count, Total)
+- `ReportService` — усі LINQ-запити (Where, Select, GroupBy, OrderBy, Take, агрегати)
+
+### Команди звітів у Cli
+
+```bash
+dotnet run --project src/Cli -- report-top      # Топ-5 найстаріших книг
+dotnet run --project src/Cli -- report-low      # Книги до 1900 року
+dotnet run --project src/Cli -- report-groups   # Групування за статусом
+dotnet run --project src/Cli -- report-sum      # Підсумки (кількість, середній рік, найстаріша, найновіша)
+dotnet run --project src/Cli -- report-deferred # Демонстрація відкладеного виконання

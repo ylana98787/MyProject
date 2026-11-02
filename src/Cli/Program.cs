@@ -6,6 +6,7 @@ using Core.Services;
 using Core.Storage;
 using Core.Notifications;
 using Core.Import;
+using Core.Reports;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -30,6 +31,68 @@ var consoleSink = new ConsoleSink();
 var compositeSink = new CompositeSink(consoleSink, fileSink);
 
 var service = new LendingService(store, compositeSink);
+// === ПІДКОМАНДИ ЗВІТІВ ===
+var command = args.FirstOrDefault(a => !a.StartsWith("--"));
+
+if (command is not null && command.StartsWith("report-"))
+{
+    var allItems = service.All();  // ← СЕРВІС МАЄ БУТИ ВЖЕ СТВОРЕНИЙ!
+
+    switch (command)
+    {
+        case "report-top":
+            Console.WriteLine("=== Топ-5 найстаріших книг ===");
+            PrintLines(ReportService.TopOldest(allItems, 5));
+            break;
+
+        case "report-low":
+            Console.WriteLine("=== Книги, видані до 1900 року ===");
+            PrintLines(ReportService.OldBooks(allItems, 1900));
+            break;
+
+        case "report-groups":
+            Console.WriteLine("=== Групування за статусом ===");
+            foreach (var g in ReportService.ByStatus(allItems))
+                Console.WriteLine($"  {g.Key,-10} книг: {g.Count,3}");
+            break;
+
+        case "report-sum":
+            var t = ReportService.Totals(allItems);
+            Console.WriteLine("=== Підсумки ===");
+            Console.WriteLine($"  Всього книг: {t.Items}");
+            Console.WriteLine($"  Середній рік: {t.AverageYear:F0}");
+            Console.WriteLine($"  Найстаріша: {t.OldestYear}");
+            Console.WriteLine($"  Найновіша: {t.NewestYear}");
+            break;
+
+            case "report-deferred":
+            Console.WriteLine("=== Відкладене виконання LINQ ===");
+            var source = allItems.ToList();
+            Console.WriteLine($"Початкова кількість: {source.Count}");
+
+            var query = source.Where(b => b.Year < 1900);
+            Console.WriteLine($"Стародавніх до змін: {query.Count()}");
+
+            source.Add(BookCopy.Create("TMP-001", "000-000", "Нова книга", 1800));
+            Console.WriteLine($"У джерелі тепер: {source.Count}");
+
+            Console.WriteLine($"Стародавніх після змін: {query.Count()}");
+
+            var snapshot = query.ToList();
+            Console.WriteLine($"У знімку (snapshot): {snapshot.Count}");
+
+            source.Clear();
+            Console.WriteLine($"У знімку після Clear: {snapshot.Count}");
+            break;
+
+        default:
+            Console.WriteLine("Доступні команди: report-top | report-low | report-groups | report-sum");
+            break;
+    }
+
+    return 0;   
+}
+
 // === ПІДПИСКА НА ПОДІЮ ===
 var logPath = Path.Combine(AppContext.BaseDirectory, "logs", "app.log");
 Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
@@ -48,11 +111,13 @@ void OnLibraryChanged(object? sender, LibraryChangedEventArgs e)
     Console.WriteLine(line);
     File.AppendAllText(logPath, line + Environment.NewLine);
 }
-service.Changed += OnLibraryChanged;
+service.Changed += OnLibraryChanged;//підписка локального методу. Він пише в консоль і в logs/app.log.
+// Локальний метод обраний, бо його можна відписати через -= (на відміну від лямбди "в один рядок").
 
 // Другий підписник — лямбда із замиканням
 int eventCount = 0;
-service.Changed += (_, _) => eventCount++;
+service.Changed += (_, _) => eventCount++;//другий підписник, лямбда. 
+//Вона рахує події через замикання над змінною eventCount.
 
 // 1. Додати нову книгу
 Console.WriteLine("--- Додати нову книгу ---");
@@ -162,6 +227,8 @@ Console.WriteLine($"Подій після відписки (лямбда-ліч�
 Console.WriteLine();
 Console.WriteLine("=== FindAll з Func ===");
 var few = service.FindAll(b => b.Year < 1900);   // книги до 1900 року
+//Ось я викликаю метод FindAll і передаю йому лямбду b => b.Year < 1900.
+
 Console.WriteLine($"Книги до 1900 року ({few.Count}):");
 foreach (var b in few.Take(5))
     Console.WriteLine($"  {b.Year} — {b.Title}");
@@ -189,6 +256,11 @@ else
 {
     Console.WriteLine("Файл sample.csv не знайдено (це нормально, якщо ви не копіювали його в bin)");
 }
+static void PrintLines(IReadOnlyList<BookReportLine> lines)
+{
+    foreach (var l in lines)
+        Console.WriteLine($"  {l.Id,-10} {l.Year,5}  {l.Title,-30}  [{l.Status}]");
+}
 
 // === ДОПОМІЖНА ФУНКЦІЯ ===
 static void TryDo(string title, Action action)
@@ -203,3 +275,5 @@ static void TryDo(string title, Action action)
         Console.WriteLine($"  {title}: {ex.GetType().Name} — {ex.Message}");
     }
 }
+
+return 0;   

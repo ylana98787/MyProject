@@ -47,8 +47,10 @@ public sealed class LendingService(IBookStore store, INotificationSink? sink = n
         // Якщо Issue() кине виняток — подія НЕ згенерується
         copy.Issue();
         _store.Update(copy);
+        //Якщо copy.Issue() кидає виняток, OnChanged не виконується. 
+        // Тому подія не виникає. Саме це і демонструє сценарій відмови
 
-        OnChanged(copy.Id, LibraryChangeKind.CopyIssued, readerId, dueDate);
+        OnChanged(copy.Id, LibraryChangeKind.CopyIssued, readerId, dueDate);//// ← викликається лише якщо все успішно
     }
 
     public void ReturnCopy(string id)
@@ -69,5 +71,8 @@ public sealed class LendingService(IBookStore store, INotificationSink? sink = n
     public IReadOnlyList<BookCopy> Search(Func<BookCopy, bool> predicate) => _store.Find(predicate);
 
     // Для демонстрації Func (додаткове завдання лабораторної 5)
+    //А ось як цей метод оголошений. Він приймає параметр Func<BookCopy, bool> predicate.
+//Func — це делегат, який повертає результат (у нашому випадку true або false).
+//Всередині я беру весь список зі сховища (_store.List()) і за допомогою Where(predicate) залишаю тільки ті книги, для яких моя лямбда повернула true
     public IReadOnlyList<BookCopy> FindAll(Func<BookCopy, bool> predicate) => _store.List().Where(predicate).ToList();
 }
