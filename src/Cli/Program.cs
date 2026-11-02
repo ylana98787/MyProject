@@ -85,10 +85,87 @@ if (command is not null && command.StartsWith("report-"))
             Console.WriteLine($"У знімку після Clear: {snapshot.Count}");
             break;
 
-        default:
-            Console.WriteLine("Доступні команди: report-top | report-low | report-groups | report-sum");
-            break;
+            case "report-join":
+            Console.WriteLine("=== Зведений звіт видач (Join) ===");
+    
+    // Створимо демонстраційні видачі для прикладу
+    var demoCopy1 = allItems.FirstOrDefault(b => b.Id == "BC-001");
+    var demoCopy2 = allItems.FirstOrDefault(b => b.Id == "BC-002");
+    
+    if (demoCopy1 == null || demoCopy2 == null)
+    {
+        Console.WriteLine("Потрібні BC-001 і BC-002 — перевірте SampleData.");
+        break;
     }
+    
+    var demoLoans = new List<Loan>
+    {
+        Loan.Open("L-001", demoCopy1, "R-001", new DateTime(2026, 10, 1)),
+        Loan.Open("L-002", demoCopy2, "R-002", new DateTime(2026, 10, 5))
+    };
+    
+    var joined = ReportService.JoinedLoans(allItems, demoLoans);
+    foreach (var j in joined)
+        Console.WriteLine($"  {j.CopyId,-10} {j.Title,-30} → {j.ReaderId} (до {j.IssuedOn:yyyy-MM-dd})");
+    break;
+
+    case "report-newest":
+    Console.WriteLine("=== Топ-5 найновіших книг (TopBy) ===");
+    PrintLines(ReportService.TopNewest(allItems, 5));
+    break;
+
+    case "report-longest":
+    Console.WriteLine("=== Топ-5 найдовших назв (TopBy) ===");
+    PrintLines(ReportService.TopByLongestTitle(allItems, 5));
+    break;
+
+       case "report-groups-qs":
+        Console.WriteLine("=== Групування за статусом (query syntax) ===");
+        foreach (var g in ReportService.ByStatusQuerySyntax(allItems))
+            Console.WriteLine($"  {g.Key,-10} книг: {g.Count,3}");
+        break;
+
+        case "report-perf":
+    Console.WriteLine("=== Вимірювання продуктивності (100 000 записів) ===");
+    
+    var random = new Random(42);
+    var bigData = Enumerable.Range(1, 100_000)
+        .Select(i => BookCopy.Create(
+            $"BIG-{i:D5}", 
+            $"978-966-{i:D5}-1", 
+            $"Книга {i}", 
+            random.Next(1450, 2026)))
+        .ToList();
+    
+    Console.WriteLine($"Згенеровано: {bigData.Count} записів");
+    
+    // Варіант 1: БЕЗ ToList у середині
+    var sw1 = System.Diagnostics.Stopwatch.StartNew();
+    var result1 = bigData
+        .Where(b => b.Year < 1900)
+        .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
+        .ToList();
+    sw1.Stop();
+    Console.WriteLine($"  Без ToList у середині:  {sw1.ElapsedMilliseconds} ms, результат: {result1.Count}");
+    
+    // Варіант 2: З ToList у середині
+    var sw2 = System.Diagnostics.Stopwatch.StartNew();
+    var result2 = bigData
+        .Where(b => b.Year < 1900)
+        .ToList()
+        .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
+        .ToList();
+    sw2.Stop();
+    Console.WriteLine($"  З ToList у середині:    {sw2.ElapsedMilliseconds} ms, результат: {result2.Count}");
+    
+    Console.WriteLine($"  Різниця: {sw2.ElapsedMilliseconds - sw1.ElapsedMilliseconds} ms");
+    break;
+
+    default:
+        Console.WriteLine("Доступні команди: report-top | report-low | report-groups | report-sum | report-deferred | report-join | report-newest | report-longest | report-groups-qs");
+        break;
+            }
+
 
     return 0;   
 }
@@ -276,4 +353,4 @@ static void TryDo(string title, Action action)
     }
 }
 
-return 0;   
+return 0; 

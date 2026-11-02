@@ -1,4 +1,5 @@
 using Core.Domain;
+using Core.Extensions;
 
 namespace Core.Reports;
 
@@ -46,4 +47,43 @@ public static class ReportService
         => source.Where(predicate)
                  .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
                  .ToList();
+
+                 // 6) Join двох колекцій
+               // Питання: "Які книги видані яким читачам?"
+  public static IReadOnlyList<LoanReportLine> JoinedLoans(
+    IEnumerable<BookCopy> copies,
+    IEnumerable<Loan> loans)
+    => copies
+        .Join(loans,
+              copy => copy.Id,
+              loan => loan.Copy.Id,
+              (copy, loan) => new LoanReportLine(
+                  copy.Id,
+                  copy.Title,
+                  loan.ReaderId,
+                  loan.IssuedOn))
+        .OrderBy(l => l.IssuedOn)
+        .ThenBy(l => l.CopyId, StringComparer.Ordinal)
+        .ToList();
+
+        // 7) Топ-5 найновіших (доп. 2 — TopBy)
+public static IReadOnlyList<BookReportLine> TopNewest(IEnumerable<BookCopy> source, int n)
+    => source.TopBy(b => b.Year, n)
+             .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
+             .ToList();
+
+// 8) Топ-N за кількістю символів у назві (доп. 2 — TopBy)
+public static IReadOnlyList<BookReportLine> TopByLongestTitle(IEnumerable<BookCopy> source, int n)
+    => source.TopBy(b => b.Title.Length, n)
+             .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
+             .ToList();
+
+             // 9) Синтаксис запитів (доп. 3) — той самий звіт, що ByStatus, але через from/group/into
+public static IReadOnlyList<GroupSummary> ByStatusQuerySyntax(IEnumerable<BookCopy> source)
+    => (from book in source
+        group book by book.Status.ToString() into g
+        orderby g.Count() descending
+        select new GroupSummary(g.Key, g.Count(), g.Count()))
+       .ToList();
+       
 }
