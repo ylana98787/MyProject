@@ -7,7 +7,7 @@ namespace Core.Storage;
 
 public sealed class JsonBookImporter : IBookImporter
 {
-    public async Task<IReadOnlyList<BookCopy>> LoadAsync(string path, CancellationToken ct = default)
+    public async Task<IReadOnlyList<BookCopy>> LoadAsync(string path, CancellationToken ct = default)//ПРИЙМАЄМО токен
     {
         // Справжній асинхронний ввід-вивід через FileStream з useAsync: true
         await using var stream = new FileStream(
@@ -24,7 +24,7 @@ public sealed class JsonBookImporter : IBookImporter
         var dtos = await JsonSerializer.DeserializeAsync<List<BookDto>>(
             stream,
             options, 
-            cancellationToken: ct)
+            cancellationToken: ct)//ПЕРЕДАЄМО в десеріалізацію
             ?? throw new DomainException($"Файл {Path.GetFileName(path)} не містить списку.");
 
         var result = new List<BookCopy>(dtos.Count);

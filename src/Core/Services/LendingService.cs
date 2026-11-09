@@ -79,28 +79,54 @@ public sealed class LendingService(IBookStore store, INotificationSink? sink = n
 /// Асинхронний імпорт книг із файлу через імпортер.
 /// Імпортер передається як параметр (ручний DI).
 /// </summary>
-public async Task<int> ImportAsync(IBookImporter importer, string path, CancellationToken ct = default)
+public async Task<int> ImportAsync(
+    IBookImporter importer,
+    string path,
+    CancellationToken ct = default, // ПРИЙМАЄМО токен
+    Action<int, string>? onProgress = null)
 {
-    // Асинхронно завантажуємо книги (всередині — FileStream з useAsync: true)
-    var items = await importer.LoadAsync(path, ct);
-
+    var items = await importer.LoadAsync(path, ct);// ПЕРЕДАЄМО ДАЛІ
     var added = 0;
 
-    foreach (var item in items)
+    for (var i = 0; i < items.Count; i++)
     {
-        // Перевіряємо скасування на кожній ітерації
+        ct.ThrowIfCancellationRequested(); //перевіряємо
+
+        var item = items[i];
+        if (_store.GetById(item.Id) is not null) continue;
+
+        _store.Add(item);
+        OnChanged(item.Id, LibraryChangeKind.BookAdded);
+        added++;
+
+        // Тимчасова затримка для демонстрації
+        await Task.Delay(300, ct);
+
+        var percent = (i + 1) * 100 / items.Count;
+        onProgress?.Invoke(percent, item.Title);
+    }
+
+    return added;
+}
+/// <summary>
+/// Потоковий імпорт: обробляємо книги по одній через await foreach.
+/// </summary>
+public async Task<int> ImportStreamAsync(
+    IAsyncBookImporter importer,
+    string path,
+    CancellationToken ct = default)
+{
+    var added = 0;
+
+    await foreach (var item in importer.LoadStreamAsync(path, ct).WithCancellation(ct))
+    {
         ct.ThrowIfCancellationRequested();
 
-        // Ідемпотентність: якщо запис з таким Id уже є — пропускаємо
         if (_store.GetById(item.Id) is not null)
             continue;
 
-        // Додаємо в сховище
         _store.Add(item);
-
-        // Піднімаємо подію (як на тижні 6) для кожного доданого запису
         OnChanged(item.Id, LibraryChangeKind.BookAdded);
-
         added++;
     }
 

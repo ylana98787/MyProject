@@ -31,6 +31,124 @@ var consoleSink = new ConsoleSink();
 var compositeSink = new CompositeSink(consoleSink, fileSink);
 
 var service = new LendingService(store, compositeSink);
+
+if (args.Contains("import-progress"))
+{
+    var importPath = args.SkipWhile(a => a != "import-progress").Skip(1).FirstOrDefault()
+                     ?? Path.Combine("data", "sample.json");
+
+    Console.WriteLine($"=== Імпорт з прогрес-баром: {importPath} ===");
+
+    var quietService = new LendingService(store);
+
+    void OnProgress(int percent, string title)
+{
+    var titleText = title.Length > 40 ? title.Substring(0, 37) + "..." : title;
+    var filled = percent / 5;
+    var bar = new string('█', filled) + new string('-', 20 - filled);
+    Console.WriteLine($"{titleText,-45} [{bar}] {percent,3}%");
+}
+
+    try
+    {
+        var added = await quietService.ImportAsync(
+            new JsonBookImporter(),
+            importPath,
+            CancellationToken.None,
+            OnProgress);
+
+        Console.WriteLine($"Імпортовано записів: {added}");
+    }
+    catch (DomainException ex) { Console.WriteLine($"\nДані відхилено: {ex.Message}"); }
+    catch (FileNotFoundException) { Console.WriteLine($"\nФайл не знайдено: {importPath}"); }
+
+    return 0;
+}
+
+if (args.Contains("import-timeout"))
+{
+    var importPath = args.SkipWhile(a => a != "import-timeout").Skip(1).FirstOrDefault()
+                     ?? Path.Combine("data", "sample.json");
+
+    Console.WriteLine($"=== Імпорт з таймаутом (5 сек): {importPath} ===");
+
+    // Джерело 1: скасування користувачем (Ctrl+C)
+    using var userCts = new CancellationTokenSource();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; userCts.Cancel(); };
+
+    // Джерело 2: автоматичний таймаут через 5 секунди
+    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+    //Щоб не писати два окремих catch і не дублювати логіку, я використовую:
+    // Зв'язуємо обидва джерела в один токен який скасовується, якщо спрацює будь-яке з цих джерел.
+    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+        userCts.Token, //Ctrl+C
+        timeoutCts.Token);//таймаут
+
+    try
+    {
+        var added = await service.ImportAsync(
+            new JsonBookImporter(),
+            importPath,
+            linkedCts.Token);
+
+        Console.WriteLine($"Імпортовано записів: {added}");
+    }
+    catch (OperationCanceledException)//Після перехоплення OperationCanceledException
+    {
+        // Визначаємо, ХТО ініціював скасування
+        if (timeoutCts.IsCancellationRequested)
+            Console.WriteLine("Імпорт скасовано: таймаут (5 сек).");
+        else if (userCts.IsCancellationRequested)
+            Console.WriteLine("Імпорт скасовано: користувач (Ctrl+C).");
+        else
+            Console.WriteLine("Імпорт скасовано.");
+    }
+    catch (DomainException ex)
+    {
+        Console.WriteLine($"Дані відхилено: {ex.Message}");
+    }
+    catch (FileNotFoundException)
+    {
+        Console.WriteLine($"Файл не знайдено: {importPath}");
+    }
+
+    return 0;
+}
+if (args.Contains("import-stream"))
+{
+    var importPath = args.SkipWhile(a => a != "import-stream").Skip(1).FirstOrDefault()
+                     ?? Path.Combine("data", "sample.json");
+
+    Console.WriteLine($"=== Потоковий імпорт: {importPath} ===");
+
+    using var cts = new CancellationTokenSource();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+
+    try
+    {
+        var added = await service.ImportStreamAsync(
+            new JsonBookStreamImporter(),
+            importPath,
+            cts.Token);
+
+        Console.WriteLine($"Імпортовано записів: {added}");
+    }
+    catch (OperationCanceledException)
+    {
+        Console.WriteLine("Імпорт скасовано.");
+    }
+    catch (DomainException ex)
+    {
+        Console.WriteLine($"Дані відхилено: {ex.Message}");
+    }
+    catch (FileNotFoundException)
+    {
+        Console.WriteLine($"Файл не знайдено: {importPath}");
+    }
+
+    return 0;
+}
 // === ІМПОРТ ЧЕРЕЗ ASYNC ===
 if (args.Contains("import"))
 {
