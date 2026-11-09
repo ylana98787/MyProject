@@ -31,6 +31,52 @@ var consoleSink = new ConsoleSink();
 var compositeSink = new CompositeSink(consoleSink, fileSink);
 
 var service = new LendingService(store, compositeSink);
+// === ІМПОРТ ЧЕРЕЗ ASYNC ===
+if (args.Contains("import"))
+{
+    // Шлях до файлу: наступний аргумент після "import", або data/sample.json
+    var importPath = args.SkipWhile(a => a != "import").Skip(1).FirstOrDefault()
+                     ?? Path.Combine("data", "sample.json");
+
+    Console.WriteLine($"=== Асинхронний імпорт: {importPath} ===");
+
+    // CancellationTokenSource для Ctrl+C
+    using var cts = new CancellationTokenSource();
+    
+    Console.CancelKeyPress += (_, e) =>
+    {
+        e.Cancel = true;   // Забороняємо стандартне завершення
+        cts.Cancel();       // Сигналізуємо скасування
+        Console.WriteLine("\n[Скасування...]");
+    };
+
+    // Для демонстрації таймауту — розкоментуйте наступний рядок:
+    cts.CancelAfter(TimeSpan.FromMilliseconds(2));
+
+    try
+    {
+        var added = await service.ImportAsync(
+            new JsonBookImporter(),
+            importPath,
+            cts.Token);
+
+        Console.WriteLine($"Імпортовано записів: {added}");
+    }
+    catch (OperationCanceledException)
+    {
+        Console.WriteLine("Імпорт скасовано.");
+    }
+    catch (DomainException ex)
+    {
+        Console.WriteLine($"Дані відхилено: {ex.Message}");
+    }
+    catch (FileNotFoundException)
+    {
+        Console.WriteLine($"Файл не знайдено: {importPath}");
+    }
+
+    return 0;   // ← виходимо після імпорту
+}
 // === ПІДКОМАНДИ ЗВІТІВ ===
 var command = args.FirstOrDefault(a => !a.StartsWith("--"));
 
@@ -67,17 +113,19 @@ if (command is not null && command.StartsWith("report-"))
 
             case "report-deferred":
             Console.WriteLine("=== Відкладене виконання LINQ ===");
+            //1. Беремо знімок джерела (список книг)
             var source = allItems.ToList();
             Console.WriteLine($"Початкова кількість: {source.Count}");
-
+            //2. Будуємо запит (ще НЕ виконується)
             var query = source.Where(b => b.Year < 1900);
+            // 3. Перший Count() — запит виконується, повертає 10
             Console.WriteLine($"Стародавніх до змін: {query.Count()}");
-
+            // 4. Змінюємо джерело (додаємо книгу з роком 1800)
             source.Add(BookCopy.Create("TMP-001", "000-000", "Нова книга", 1800));
             Console.WriteLine($"У джерелі тепер: {source.Count}");
-
+            // 5. Другий Count() — запит виконується ЗНОВУ, повертає 11
             Console.WriteLine($"Стародавніх після змін: {query.Count()}");
-
+            // 6. Матеріалізуємо запит (фіксуємо результат)
             var snapshot = query.ToList();
             Console.WriteLine($"У знімку (snapshot): {snapshot.Count}");
 

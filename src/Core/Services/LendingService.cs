@@ -75,4 +75,35 @@ public sealed class LendingService(IBookStore store, INotificationSink? sink = n
 //Func — це делегат, який повертає результат (у нашому випадку true або false).
 //Всередині я беру весь список зі сховища (_store.List()) і за допомогою Where(predicate) залишаю тільки ті книги, для яких моя лямбда повернула true
     public IReadOnlyList<BookCopy> FindAll(Func<BookCopy, bool> predicate) => _store.List().Where(predicate).ToList();
+    /// <summary>
+/// Асинхронний імпорт книг із файлу через імпортер.
+/// Імпортер передається як параметр (ручний DI).
+/// </summary>
+public async Task<int> ImportAsync(IBookImporter importer, string path, CancellationToken ct = default)
+{
+    // Асинхронно завантажуємо книги (всередині — FileStream з useAsync: true)
+    var items = await importer.LoadAsync(path, ct);
+
+    var added = 0;
+
+    foreach (var item in items)
+    {
+        // Перевіряємо скасування на кожній ітерації
+        ct.ThrowIfCancellationRequested();
+
+        // Ідемпотентність: якщо запис з таким Id уже є — пропускаємо
+        if (_store.GetById(item.Id) is not null)
+            continue;
+
+        // Додаємо в сховище
+        _store.Add(item);
+
+        // Піднімаємо подію (як на тижні 6) для кожного доданого запису
+        OnChanged(item.Id, LibraryChangeKind.BookAdded);
+
+        added++;
+    }
+
+    return added;
+}
 }

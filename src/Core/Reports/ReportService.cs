@@ -22,12 +22,24 @@ public static class ReportService
                  .ToList();
 
     // 3) Групування з підрахунком
-    // Питання: "Скільки книг у кожному статусі (Available/Issued)?"
-    public static IReadOnlyList<GroupSummary> ByStatus(IEnumerable<BookCopy> source)
-        => source.GroupBy(b => b.Status.ToString(), StringComparer.OrdinalIgnoreCase)
-                 .Select(g => new GroupSummary(g.Key, g.Count(), g.Count()))
-                 .OrderByDescending(s => s.Count)
-                 .ToList();
+    // Метод повертає список зведених груп (GroupSummary) для заданої колекції книг.
+// Використовується для відповіді на питання: "Скільки книг у кожному статусі?"
+     public static IReadOnlyList<GroupSummary> ByStatus(IEnumerable<BookCopy> source)
+         => source
+        // Групуємо книги за їхнім статусом (перетвореним на рядок: "Available" або "Issued").
+        // StringComparer.OrdinalIgnoreCase означає, що регістр не має значення (хоча тут це не критично).
+        .GroupBy(b => b.Status.ToString(), StringComparer.OrdinalIgnoreCase)
+        
+        // Проєктуємо кожну групу (g) у новий об'єкт GroupSummary.
+        // g.Key — це назва статусу (наприклад, "Available").
+        // g.Count() — кількість книг у цій групі (використовується і для Count, і для Total).
+        .Select(g => new GroupSummary(g.Key, g.Count(), g.Count()))
+        
+        // Сортуємо готові групи за спаданням кількості книг (найбільші групи будуть першими).
+        .OrderByDescending(s => s.Count)
+        
+        // Матеріалізуємо результат у список. Це змушує LINQ-запит виконатися негайно.
+        .ToList();
 
     // 4) Агрегати з обробкою порожньої послідовності
     // Питання: "Скільки всього книг, який середній рік видання, найстаріша?"
@@ -66,24 +78,24 @@ public static class ReportService
         .ThenBy(l => l.CopyId, StringComparer.Ordinal)
         .ToList();
 
-        // 7) Топ-5 найновіших (доп. 2 — TopBy)
+        // 7) Топ-5 найновіших (дод. 2 — TopBy)
 public static IReadOnlyList<BookReportLine> TopNewest(IEnumerable<BookCopy> source, int n)
     => source.TopBy(b => b.Year, n)
              .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
              .ToList();
 
-// 8) Топ-N за кількістю символів у назві (доп. 2 — TopBy)
+// 8) Топ-N за кількістю символів у назві (дод. 2 — TopBy)
 public static IReadOnlyList<BookReportLine> TopByLongestTitle(IEnumerable<BookCopy> source, int n)
     => source.TopBy(b => b.Title.Length, n)
              .Select(b => new BookReportLine(b.Id, b.Title, b.Isbn, b.Year, b.Status.ToString()))
              .ToList();
 
-             // 9) Синтаксис запитів (доп. 3) — той самий звіт, що ByStatus, але через from/group/into
+             // 9) Синтаксис запитів (дод. 3) — той самий звіт, що ByStatus, але через from/group/into
 public static IReadOnlyList<GroupSummary> ByStatusQuerySyntax(IEnumerable<BookCopy> source)
     => (from book in source
         group book by book.Status.ToString() into g
         orderby g.Count() descending
         select new GroupSummary(g.Key, g.Count(), g.Count()))
        .ToList();
-       
+
 }
