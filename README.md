@@ -228,6 +228,7 @@ dotnet run --project src/Cli -- report-low      # Книги до 1900 року
 dotnet run --project src/Cli -- report-groups   # Групування за статусом
 dotnet run --project src/Cli -- report-sum      # Підсумки (кількість, середній рік, найстаріша, найновіша)
 dotnet run --project src/Cli -- report-deferred # Демонстрація відкладеного виконання
+```
 
 ### Синтаксис запитів (додаткове завдання 3)
 
@@ -239,6 +240,7 @@ source.GroupBy(b => b.Status.ToString())
       .Select(g => new GroupSummary(g.Key, g.Count(), g.Count()))
       .OrderByDescending(s => s.Count)
       .ToList();
+```
 
 **2. Синтаксис запитів (`ByStatusQuerySyntax`):**
 ```csharp
@@ -247,7 +249,7 @@ source.GroupBy(b => b.Status.ToString())
  orderby g.Count() descending
  select new GroupSummary(g.Key, g.Count(), g.Count()))
 .ToList();
-
+```
 
 ---
 
