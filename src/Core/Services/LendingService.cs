@@ -100,7 +100,7 @@ public async Task<int> ImportAsync(
         added++;
 
         // Тимчасова затримка для демонстрації
-        await Task.Delay(300, ct);
+        await Task.Delay(1000, ct);
 
         var percent = (i + 1) * 100 / items.Count;
         onProgress?.Invoke(percent, item.Title);

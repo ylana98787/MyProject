@@ -42,7 +42,7 @@ public sealed class JsonBookStreamImporter : IAsyncBookImporter
                 throw new DomainException($"Запис {i + 1}: {ex.Message}", ex);
             }
 
-            yield return copy;
+            yield return copy;//це ключове слово, яке віддає книги по одній.
         }
     }
 }

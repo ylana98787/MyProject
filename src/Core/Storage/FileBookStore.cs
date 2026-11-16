@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Encodings.Web; 
 using Core.Abstractions;
 using Core.Domain;
 using Core.Dto;
@@ -13,7 +14,9 @@ public sealed class FileBookStore(string path) : IBookStore
     // WriteIndented = true — робить файл "гарним" (з відступами та переносами рядків).
     private static readonly JsonSerializerOptions Options = new()
     {
-        WriteIndented = true
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     // Кеш у пам'яті для швидкого доступу до даних.

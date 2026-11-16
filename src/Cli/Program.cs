@@ -7,11 +7,47 @@ using Core.Storage;
 using Core.Notifications;
 using Core.Import;
 using Core.Reports;
+using System.Reflection;
+using Core.Configuration;
+using Microsoft.Extensions.Configuration;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+// === КОНФІГУРАЦІЯ ===
+var envName = Environment.GetEnvironmentVariable("CROSSAPP_ENVIRONMENT") ?? "Development";
+
+var config = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{envName}.json", optional: true)
+    .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
+    .AddEnvironmentVariables(prefix: "CROSSAPP_")
+    .AddCommandLine(args)
+    .Build();
+
+var options = config.Get<AppOptions>() ?? new AppOptions();
+
+// Підтримка простої змінної CROSSAPP_DATA_PATH
+var legacyDataPath = Environment.GetEnvironmentVariable("CROSSAPP_DATA_PATH");
+var storage = new StorageOptions
+{
+    DataPath = string.IsNullOrWhiteSpace(legacyDataPath) ? options.Storage.DataPath : legacyDataPath,
+    FileName = options.Storage.FileName
+};
+
+var apiKey = config["Integration:ApiKey"];
+
+Console.WriteLine("=".PadRight(70, '='));
+Console.WriteLine($"Середовище: {options.EnvironmentName}");
+Console.WriteLine($"Файл даних: {storage.ResolveFullPath(AppContext.BaseDirectory)}");
+Console.WriteLine(apiKey is null 
+    ? "ApiKey: не заданий" 
+    : $"ApiKey: присутній, довжина {apiKey.Length}");
+Console.WriteLine("=".PadRight(70, '='));
+Console.WriteLine();
+
 // === COMPOSITION ROOT ===
-string dataPath = Path.Combine(AppContext.BaseDirectory, "data", "catalog.json");
+string dataPath = storage.ResolveFullPath(AppContext.BaseDirectory);
 
 // Фабрика створює базове сховище. Якщо є --cache, обгортає його в декоратор.
 IBookStore store = StoreFactory.Create(args, dataPath);
@@ -159,8 +195,8 @@ if (args.Contains("import"))
     Console.WriteLine($"=== Асинхронний імпорт: {importPath} ===");
 
     // CancellationTokenSource для Ctrl+C
-    using var cts = new CancellationTokenSource();
-    
+    using var cts = new CancellationTokenSource();// Створюємо джерело скасування
+    // Налаштовуємо реакцію на Ctrl+C
     Console.CancelKeyPress += (_, e) =>
     {
         e.Cancel = true;   // Забороняємо стандартне завершення
@@ -173,10 +209,10 @@ if (args.Contains("import"))
 
     try
     {
-        var added = await service.ImportAsync(
+        var added = await service.ImportAsync(// Передаємо токен у сервіс
             new JsonBookImporter(),
             importPath,
-            cts.Token);
+            cts.Token);// ← ОСЬ ПЕРЕДАЧА ТОКЕНА
 
         Console.WriteLine($"Імпортовано записів: {added}");
     }

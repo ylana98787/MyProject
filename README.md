@@ -262,3 +262,43 @@ source.GroupBy(b => b.Status.ToString())
 | **Кількість крапок і дужок** | Багато | Немає |
 
 **Висновок:** для складного групування синтаксис запитів читається краще (він виглядає як природний SQL-запит). Для простих фільтрів і сортування — методний синтаксис зрозуміліший. Компілятор перекладає синтаксис запитів у ті самі виклики методів, тому результат ідентичний.
+
+## Конфігурація та профілі
+
+У проєкті реалізовано гнучку систему конфігурації, яка дозволяє змінювати налаштування без перекомпіляції коду. Налаштування зчитуються з файлів JSON та можуть бути перекриті змінними середовища.
+
+### Профілі середовищ
+
+| Параметр | Development (за замовчуванням) | Production |
+| :--- | :--- | :--- |
+| **Рівень логування** | `Debug` (детальний) | `Warning` (лише попередження та помилки) |
+| **Розташування даних** | `data/books.json` (у папці збірки) | `C:\Users\ylana\AppData\Local\MyProject\data\books.json` (системний каталог) |
+| **Секрети** | Зчитуються з `user-secrets` | Змінні середовища або Key Vault |
+
+Перемикання між профілями здійснюється через змінну середовища `CROSSAPP_ENVIRONMENT`:
+*   `CROSSAPP_ENVIRONMENT=Development` (або відсутність змінної)
+*   `CROSSAPP_ENVIRONMENT=Production`
+
+### Таблиця ключів конфігурації
+
+| Ключ | Тип | Значення за замовчуванням | Джерело перекриття |
+| :--- | :--- | :--- | :--- |
+| `EnvironmentName` | `string` | `Development` | `CROSSAPP_ENVIRONMENT` |
+| `Logging:MinimumLevel` | `string` | `Debug` / `Warning` | `appsettings.{Env}.json` |
+| `Storage:DataPath` | `string` | `data` | `CROSSAPP_DATA_PATH`, `CROSSAPP_Storage__DataPath` |
+| `Storage:FileName` | `string` | `books.json` | `CROSSAPP_Storage__FileName` |
+| `Integration:ApiKey` | `secret` | — (відсутній у Git) | `user-secrets`, `CROSSAPP_Integration__ApiKey` |
+
+*Примітка:* Для вкладених ключів у змінних середовища двокрапка `:` замінюється на подвійне підкреслення `__` (наприклад, `CROSSAPP_Storage__DataPath`). Префікс `CROSSAPP_` додається автоматично в коді.
+
+### Приклади перевизначення через змінні середовища 
+
+```bash
+# Змінити шлях до даних
+CROSSAPP_DATA_PATH="/c/Users/ylana/my_data" dotnet run --project src/Cli -- export --file
+
+# Змінити рівень логування (через складений ключ)
+CROSSAPP_Storage__FileName="my_books.json" dotnet run --project src/Cli -- export --file
+
+# Перемкнути на Production
+CROSSAPP_ENVIRONMENT="Production" dotnet run --project src/Cli -- export --file
