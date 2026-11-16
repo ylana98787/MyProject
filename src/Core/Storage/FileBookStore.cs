@@ -53,20 +53,20 @@ public sealed class FileBookStore(string path) : IBookStore
         _loaded = true; // Запам'ятовуємо, що дані завантажені.
     }
 
-    // Метод для збереження даних з кешу у файл.
-    // Викликається ПІСЛЯ кожної зміни (Add, Update, Remove).
-    private void Flush()
+
+      private void Flush()
     {
-        // Створюємо директорію, якщо її немає (наприклад, папки data/).
-        // ! (null-forgiving) — кажемо компілятору, що GetDirectoryName не поверне null.
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        
-        // Перетворюємо сутності назад у DTO перед серіалізацією.
-        // Select — це LINQ-проекція (перетворює кожен елемент).
         var dtos = _cache.Values.Select(b => b.ToDto()).ToList();
         
-        // Серіалізуємо DTO у JSON і записуємо у файл.
-        File.WriteAllText(_path, JsonSerializer.Serialize(dtos, Options));
+        var json = JsonSerializer.Serialize(dtos, Options);
+        
+        // 1. Спочатку записуємо у тимчасовий файл .tmp
+        var tmpPath = _path + ".tmp";
+        File.WriteAllText(tmpPath, json);
+        
+        // 2. Потім атомарно замінюємо цільовий файл
+        File.Move(tmpPath, _path, overwrite: true);
     }
 
     // Повертає всі записи (спочатку перевіряє, чи завантажено).
