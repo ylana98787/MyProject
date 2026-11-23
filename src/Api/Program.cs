@@ -2,19 +2,31 @@ using Api.Endpoints;
 using Core.Abstractions;
 using Core.Storage;
 using Scalar.AspNetCore;
+using Api.Contracts;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Додаємо OpenAPI та ProblemDetails (для гарних помилок)
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails(); 
+builder.Services.AddScoped<IValidator<SaveBookRequest>, SaveBookRequestValidator>();
+builder.Services.AddExceptionHandler<Api.Errors.DomainExceptionHandler>();
 
 // 2. Реєстрація сховища в DI (Singleton).
 // Створимо окрему папку для API, щоб не змішувати з даними Cli
 var dataDir = Path.Combine(AppContext.BaseDirectory, "data");
 Directory.CreateDirectory(dataDir); // Створюємо папку, якщо її немає
 var dataPath = Path.Combine(dataDir, "api_books.json");
-builder.Services.AddSingleton<IBookStore>(sp => new FileBookStore(dataPath));
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    // Для інтеграційних тестів використовуємо пам'ять, щоб не залежати від файлів
+    builder.Services.AddSingleton<IBookStore, InMemoryBookStore>();
+}
+else
+{
+    builder.Services.AddSingleton<IBookStore>(sp => new FileBookStore(dataPath));
+}
 
 var app = builder.Build();
 
@@ -35,4 +47,4 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // 6. Підключаємо наші маршрути для книг
 app.MapBooks();
 
-app.Run();
+app.Run();public partial class Program { }
