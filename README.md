@@ -306,3 +306,33 @@ CROSSAPP_Storage__FileName="my_books.json" dotnet run --project src/Cli -- expor
 # Перемкнути на Production
 CROSSAPP_ENVIRONMENT="Production" dotnet run --project src/Cli -- export --file
 ```
+## Лабораторна робота 10: HTTP API
+
+### Запуск API
+
+**bash dotnet run --project src/Api --urls http://localhost:5080 --environment Development **
+
+Порт: http://localhost:5080
+
+Scalar UI: http://localhost:5080/scalar/v1
+
+### Приклади запитів (curl)
+
+Створити книгу (POST):
+**bash curl -i -X POST http://localhost:5080/api/books -H "Content-Type: application/json" -d '{"isbn":"111","title":"New Book","year":2024}' **
+
+Отримати всі книги (GET):
+**bash curl -i http://localhost:5080/api/books **
+
+Отримати книгу за ID (GET):
+**bash curl -i http://localhost:5080/api/books/{id} **
+
+Оновити книгу (PUT):
+**bash curl -i -X PUT http://localhost:5080/api/books/{id} -H "Content-Type: application/json" -d '{"isbn":"111","title":"Updated Book","year":2025}' **
+
+Видалити книгу (DELETE):
+**bash curl -i -X DELETE http://localhost:5080/api/books/{id} **
+
+### Валідація та помилки
+Якщо надіслати некоректні дані, сервер повертає 400 Bad Request.
+Якщо книги з таким ID не існує — 404 Not Found.

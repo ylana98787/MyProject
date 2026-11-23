@@ -40,7 +40,7 @@ public sealed class FileBookStore(string path) : IBookStore
             var json = File.ReadAllText(_path);
             // Десеріалізуємо JSON у список DTO (а не сутностей!).
             // ?? [] — якщо десеріалізація повернула null, беремо порожній список.
-            var dtos = JsonSerializer.Deserialize<List<BookDto>>(json) ?? [];
+           var dtos = JsonSerializer.Deserialize<List<BookDto>>(json, Options) ?? [];
 
             foreach (var dto in dtos)
             {
